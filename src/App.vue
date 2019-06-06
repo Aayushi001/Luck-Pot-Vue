@@ -1,12 +1,25 @@
 <template>
   <div id="app">
-    <div id="nav">
-      <router-link to="/">Home</router-link> |
-      <router-link to="/about">About</router-link>
-    </div>
-    <router-view />
+    <!-- <div id="nav">
+      <router-link to="/">Home</router-link>|
+      <router-link to="/">About</router-link>
+    </div>-->
+    <router-view/>
   </div>
 </template>
+
+<script>
+let pots = localStorage.getItem("pots");
+console.log(pots);
+if (!pots) {
+  pots = [];
+  for (let i = 0; i < 20; i++) {
+    pots.push({ id: i + 1, players: [] });
+  }
+  localStorage.setItem("pots", JSON.stringify(pots));
+}
+console.log(pots[1]);
+</script>
 
 <style>
 #app {
