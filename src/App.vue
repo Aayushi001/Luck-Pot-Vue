@@ -9,16 +9,6 @@
 </template>
 
 <script>
-let pots = localStorage.getItem("pots");
-console.log(pots);
-if (!pots) {
-  pots = [];
-  for (let i = 0; i < 20; i++) {
-    pots.push({ id: i + 1, players: [] });
-  }
-  localStorage.setItem("pots", JSON.stringify(pots));
-}
-console.log(pots[1]);
 </script>
 
 <style>
