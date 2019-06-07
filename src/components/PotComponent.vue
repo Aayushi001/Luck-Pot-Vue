@@ -144,11 +144,6 @@ export default {
   height: 25px;
 }
 .lucky-animated {
-  background-image: url(/css/images/logo.png);
-  background-repeat: no-repeat;
-  background-position: left top;
-  padding-top: 95px;
-  margin-bottom: 60px;
   -webkit-animation-duration: 1s;
   animation-duration: 1s;
   -webkit-animation-fill-mode: both;
