@@ -26,16 +26,38 @@
         </div>
       </div>
       <div v-else class="row">
-        <div class="offset-md-4 col-md-4">
-          <div class="mt-10" v-for="player in players" :key="player.id">
-            <label>Player {{player.id}}:</label> &nbsp;
-            <input type="text" v-model.trim="player.name" placeholder="Enter Name">
+        <div class="offset-md-3 col-md-6">
+          <div class="mt-10" v-for="(player,i) in players" :key="player.id">
+            <label>Player {{player.id}}:</label>
+            &nbsp;
+            <template v-if="isPlayerNew[i]">
+              <input v-model.trim="player.name" placeholder="Enter Name">
+              &nbsp;
+              <button
+                @click="toggle(i)"
+                class="btn btn-md btn-outline-success"
+              >Old</button>
+            </template>
+            <template v-else>
+              <select v-model.trim="player.name" placeholder="Enter Name">
+                <option
+                  v-for="individualPlayer in allPlayers"
+                  :key="individualPlayer.id"
+                  :value="individualPlayer.name"
+                >{{individualPlayer.name}}</option>
+              </select>
+              &nbsp;
+              <button
+                @click="toggle(i)"
+                class="btn btn-md btn-outline-success"
+              >New</button>
+            </template>
           </div>
           <div class="row mt-10">
             <div v-if="!isOngoing" class="offset-md-3 col-md-6">
               <button class="btn btn-danger" @click="startGame()">Begin the game</button>
             </div>
-            <div v-else class="offset-md-1 col-md-10">
+            <div v-else class="offset-md-2 col-md-8">
               <div class="row">
                 <div class="col-md-6">
                   <button class="btn btn-outline-primary full-width" @click="startGame()">Continue</button>
@@ -53,26 +75,24 @@
 </template>
 
 <script>
+import Service from "@/service.js";
+const service = new Service();
+
 export default {
   data() {
     return {
       playersCount: 0,
       playersSet: false,
       players: [],
+      allPlayers: [],
       pots: [],
-      isOngoing: false
+      isOngoing: false,
+      isPlayerNew: []
     };
   },
   methods: {
     submit() {
-      let players = [];
-      for (let i = 0; i < this.playersCount; i++) {
-        players.push({ id: i + 1, name: "", amount: 1000 });
-      }
-      this.players = players;
       this.playersSet = true;
-      this.setPlayers();
-
       // get pots, to check if there's an ongoing game
       let pots = localStorage.getItem("pots");
       if (!pots) {
@@ -89,10 +109,33 @@ export default {
           "There's already an ongoing game. You can continue the same game or restart."
         );
       }
+      // this.setPlayers();
+
+      //get all the players
+      service.methods.getPlayers().then(data => {
+        this.allPlayers = data.data;
+        let players = [];
+        if (this.allPlayers.length > 0) {
+          for (let i = 0; i < this.playersCount; i++) {
+            this.isPlayerNew[i] = false;
+            players.push({ name: "", amount: 1000, isActive: true });
+          }
+        } else {
+          for (let i = 0; i < this.playersCount; i++) {
+            this.isPlayerNew[i] = true;
+            players.push({ name: "", amount: 1000, isActive: true });
+          }
+        }
+        this.players = players;
+        console.log(this.players);
+      });
+    },
+    toggle(i) {
+      this.isPlayerNew[i] = !this.isPlayerNew[i];
+      this.isPlayerNew = JSON.parse(JSON.stringify(this.isPlayerNew));
     },
     startGame() {
       this.setPlayers();
-      this.$router.push("game-screen");
     },
     restartGame() {
       this.setPlayers();
@@ -103,13 +146,28 @@ export default {
       this.$router.push("game-screen");
     },
     setPlayers() {
-      localStorage.setItem("players", JSON.stringify(this.players));
+      // localStorage.setItem("players", JSON.stringify(this.players));
+      let newPlayers = JSON.parse(JSON.stringify(this.players));
+      let isPlayerNewClone = JSON.parse(JSON.stringify(this.isPlayerNew));
+      for (let i = 0; i < newPlayers.length; i++) {
+        if (!isPlayerNewClone[i]) {
+          newPlayers.splice(i, 1);
+          isPlayerNewClone.splice(i, 1);
+          i--;
+        }
+      }
+      console.log(newPlayers);
+      service.methods.activatePlayers(this.players).then(data => {
+        console.log(data);
+        service.methods.addPlayers(newPlayers).then(result => {
+          this.$router.push("game-screen");
+        });
+      });
     },
     setPots() {
       localStorage.setItem("pots", JSON.stringify(this.pots));
     }
-  },
-  created() {}
+  }
 };
 </script>
 
@@ -117,8 +175,11 @@ export default {
 .home {
   margin: 120px 0px;
 }
-input {
+input,
+select {
   padding: 5px;
+  min-width: 50%;
+  min-height: 36px;
 }
 .full-width {
   width: 100%;

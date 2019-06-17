@@ -7,7 +7,7 @@
       </p>
       <h3>{{ currentPlayerName}}'s turn.</h3>
     </div>
-    <div class="container">
+    <div class="container" v-if="players.length>0">
       <div class="row">
         <div class="col-md-3">
           <button class="btn btn-outline-danger full-width no-border" disabled>
@@ -43,14 +43,12 @@
       <h3 class="center">Recent Lucky Pot Winners</h3>
       <table class="table table-striped">
         <tr>
-          <th>Player Id</th>
           <th>Player Name</th>
           <th>Deposited</th>
           <th>Multiplication Factor</th>
           <th>Won</th>
         </tr>
         <tr v-for="winner in winners" :key="winner.id">
-          <td>{{winner.playerId}}</td>
           <td>{{winner.playerName}}</td>
           <td>{{winner.depositedAmount}}</td>
           <td>{{winner.factor}}</td>
@@ -64,23 +62,45 @@
 <script>
 console.log("GAMESCREEN");
 import PotComponent from "@/components/PotComponent.vue";
+import Service from "@/service.js";
 import { setInterval } from "timers";
-import * as $ from "jquery";
+const service = new Service();
 
 export default {
   components: { PotComponent },
   data() {
     return {
       players: [],
-      currentPlayerIndex: 0,
+      currentPlayerIndex: -1,
       pots: [],
       luckyPotId: 0,
       winners: []
     };
   },
+  created() {
+    console.log("created");
+    let pots = JSON.parse(localStorage.getItem("pots"));
+    service.methods.getActivePlayers().then(data => {
+      console.log(data);
+      console.log(data.data);
+      let players = data.data;
+      this.currentPlayerIndex = 0;
+      console.log("players : ");
+
+      this.players = players;
+      this.pots = pots;
+      console.log(this.players);
+      setInterval(() => {
+        this.recurringFunction();
+      }, 60 * 60 * 1000);
+    });
+  },
   computed: {
     currentPlayerName() {
-      return this.players[this.currentPlayerIndex]["name"];
+      if (this.players[this.currentPlayerIndex]) {
+        return this.players[this.currentPlayerIndex]["name"];
+      }
+      return null;
     },
     totalSum() {
       let total = 0;
@@ -91,26 +111,24 @@ export default {
       return total;
     }
   },
-  created() {
-    console.log("created");
 
-    let players = JSON.parse(localStorage.getItem("players"));
-    let pots = JSON.parse(localStorage.getItem("pots"));
-
-    this.players = players;
-    this.pots = pots;
-    setInterval(() => {
-      this.recurringFunction();
-    }, 60 * 60 * 1000);
-  },
   methods: {
     updatePot(parameterObject) {
+      // This fn is called while depositing some amount to a specific pot.
+      // current player's amount gets reduced by the deposited amount
+      // The chosen pot gets updated by increasing its totalAmount and adding player's details.
       if (
         parameterObject.deposit <=
         this.players[this.currentPlayerIndex]["amount"]
       ) {
         this.players[this.currentPlayerIndex]["amount"] -=
           parameterObject.deposit;
+        let playersToBeUpdated = [
+          {
+            name: this.players[this.currentPlayerIndex]["name"],
+            amount: this.players[this.currentPlayerIndex]["amount"]
+          }
+        ];
         let updatedPotIndex = this.pots.findIndex(pot => {
           return pot.id === parameterObject.id;
         });
@@ -121,9 +139,7 @@ export default {
         let existingPlayerIndex = this.pots[updatedPotIndex][
           "players"
         ].findIndex(player => {
-          return (
-            player.playerId === this.players[this.currentPlayerIndex]["id"]
-          );
+          return player.name === this.players[this.currentPlayerIndex]["name"];
         });
 
         if (existingPlayerIndex != -1) {
@@ -135,13 +151,13 @@ export default {
         } else {
           //else, push new player object to the players property of pot
           this.pots[updatedPotIndex]["players"].push({
-            playerId: this.players[this.currentPlayerIndex]["id"],
+            name: this.players[this.currentPlayerIndex]["name"],
             deposit: parameterObject.deposit
           });
         }
         this.pots[updatedPotIndex]["totalAmount"] += parameterObject.deposit;
         this.updatePots();
-        this.updatePlayers();
+        this.updatePlayers(playersToBeUpdated);
       } else {
         alert(
           `Oops! You can not deposit more than Rs. ${
@@ -160,19 +176,18 @@ export default {
 
     recurringFunction() {
       console.log("recurringFunction");
+      console.log(this.players);
       let luckyPotIndex = Math.floor(Math.random() * 20);
       this.luckyPotId = this.pots[luckyPotIndex]["id"];
       console.log("id : " + this.luckyPotId);
 
       if (this.pots[luckyPotIndex]["totalAmount"] > 0) {
         this.winners = [];
-        console.log(this.pots[luckyPotIndex]["totalAmount"]);
-
         let medianPotTotal = this.findMedianPot();
-        console.log(medianPotTotal);
         let multiplicationFactor = Math.abs(
           this.pots[luckyPotIndex]["totalAmount"] - medianPotTotal
         );
+        let playersToBeUpdated = [];
         for (let i = 0; i < this.pots[luckyPotIndex]["players"].length; i++) {
           let wonAmount =
             this.pots[luckyPotIndex]["players"][i]["deposit"] *
@@ -180,17 +195,20 @@ export default {
           let playerName;
           for (let j = 0; j < this.players.length; j++) {
             if (
-              this.players[j]["id"] ===
-              this.pots[luckyPotIndex]["players"][i]["playerId"]
+              this.players[j]["name"] ===
+              this.pots[luckyPotIndex]["players"][i]["name"]
             ) {
               // amount gets added to the player's total balance
               this.players[j]["amount"] += wonAmount;
               playerName = this.players[j]["name"];
+              playersToBeUpdated.push({
+                name: playerName,
+                amount: this.players[j]["amount"]
+              });
               break;
             }
           }
           this.winners.push({
-            playerId: this.pots[luckyPotIndex]["players"][i]["playerId"],
             playerName: playerName,
             depositedAmount: this.pots[luckyPotIndex]["players"][i]["deposit"],
             factor: multiplicationFactor,
@@ -202,7 +220,7 @@ export default {
         this.pots[luckyPotIndex]["players"] = [];
         this.pots[luckyPotIndex]["totalAmount"] = 0;
         this.updatePots();
-        this.updatePlayers();
+        this.updatePlayers(playersToBeUpdated);
       } else {
         alert(`Bad Luck! The pot no. ${luckyPotIndex + 1} has no money in it.`);
       }
@@ -231,8 +249,11 @@ export default {
     updatePots() {
       localStorage.setItem("pots", JSON.stringify(this.pots));
     },
-    updatePlayers() {
-      localStorage.setItem("players", JSON.stringify(this.players));
+    updatePlayers(playersToBeUpdated) {
+      // localStorage.setItem("players", JSON.stringify(this.players));
+      service.methods.updatePlayers(playersToBeUpdated).then(data => {
+        console.log(data);
+      });
     }
   }
 };

@@ -7,8 +7,14 @@
     <router-view/>
   </div>
 </template>
-
 <script>
+import Service from "@/service.js";
+const service = new Service();
+export default {
+  created() {
+    service.methods.deactivatePlayers();
+  }
+};
 </script>
 
 <style>

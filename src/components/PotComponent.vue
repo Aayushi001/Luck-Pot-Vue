@@ -85,12 +85,6 @@ export default {
   perspective: 600px;
   height: 100px;
 }
-.outer-container:hover .pot-card {
-  box-shadow: rgba(0, 0, 0, 0.19) 0px 10px 20px, rgba(0, 0, 0, 0.23) 0px 6px 6px;
-  transform: rotateY(180deg);
-  -webkit-transform: rotateY(180deg);
-}
-
 .pot-card {
   border: 1px solid rgba(244, 248, 4, 0.125);
   padding: 10px;
@@ -100,8 +94,13 @@ export default {
   transition: transform 1.2s;
   transform-style: preserve-3d;
   cursor: pointer;
-  -webkit-transition: background-color 0.4s ease-in; /* Safari */
-  transition: background-color 0.4s ease-in;
+  -webkit-transition: 0.4s ease-in; /* Safari */
+  transition: 0.4s ease-in;
+}
+.outer-container:hover .pot-card {
+  box-shadow: rgba(0, 0, 0, 0.19) 0px 10px 20px, rgba(0, 0, 0, 0.23) 0px 6px 6px;
+  transform: rotateY(180deg);
+  -webkit-transform: rotateY(180deg);
   -webkit-transition-delay: 0.4s; /* Safari */
   transition-delay: 0.4s;
 }
